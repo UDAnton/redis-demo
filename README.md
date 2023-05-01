@@ -38,7 +38,7 @@ The Redis cluster includes master, slave and sentinel nodes. Monitoring of Redis
 
 ---
 ### Testing Redis with eviction policy set to noeviction
-The ```noeviction``` policy disabled automatic eviction of keys when the memory limit is reached. For this test I set up 5mb memory.
+The ```noeviction``` policy disabled automatic eviction of keys when the memory limit is reached.
 
 This caused OOM as soon as the cache was filled up to 10Mb: ```Request failed: OOM command not allowed when used memory > 'maxmemory'```.
 
