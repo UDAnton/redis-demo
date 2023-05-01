@@ -6,7 +6,7 @@ The Redis cluster includes master, slave and sentinel nodes. Monitoring of Redis
 
 ## How to run
 
-1. Configure Redis `--maxmemory and` and `--maxmemory-policy` in `docker-compose.yaml` file;
+1. Configure Redis `--maxmemory` and `--maxmemory-policy` in `docker-compose.yaml` file;
 2. Start up docker containers: ```docker-compose up -d```;
 
 ## Test conditionals
