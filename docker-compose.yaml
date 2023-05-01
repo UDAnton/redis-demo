@@ -1,0 +1,131 @@
+version: '3.9'
+
+services:
+
+  backend:
+    container_name: redis-demo
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mariadb
+      - redis-master
+      - redis-slave-1
+#      - redis-slave-2
+
+  mariadb:
+    image: mariadb
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_pass
+      - MYSQL_DATABASE=redis_demo
+    ports:
+      - '3306:3306'
+    volumes:
+      - ./config/sql/init_db.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+
+  redis-master:
+    hostname: redis-master.mylab.local
+    container_name: redis-master
+    image: redis:7.0.5
+    command: >
+      bash -c "echo 'port 26379' > sentinel.conf &&
+      echo 'dir /tmp' >> sentinel.conf &&
+      echo 'sentinel resolve-hostnames yes' >> sentinel.conf &&
+      echo 'sentinel monitor mymaster redis-master.mylab.local 6379 2' >> sentinel.conf &&
+      echo 'sentinel down-after-milliseconds mymaster 5000' >> sentinel.conf &&
+      echo 'sentinel parallel-syncs mymaster 1' >> sentinel.conf &&
+      echo 'sentinel failover-timeout mymaster 5000' >> sentinel.conf &&
+      cat sentinel.conf &&
+      redis-server sentinel.conf --sentinel &
+      redis-server --maxmemory 200mb --maxmemory-policy allkeys-lru"
+    volumes:
+      - "redis-bitnami-data:/bitnami/redis/data"
+      - "redis-data:/data"
+
+  redis-slave-1:
+    hostname: redis-slave-1.mylab.local
+    container_name: redis-slave-1
+    image: redis:7.0.5
+    command: >
+      bash -c "echo 'port 26379' > sentinel.conf &&
+      echo 'dir /tmp' >> sentinel.conf &&
+      echo 'sentinel resolve-hostnames yes' >> sentinel.conf &&
+      echo 'sentinel monitor mymaster redis-master.mylab.local 6379 2' >> sentinel.conf &&
+      echo 'sentinel down-after-milliseconds mymaster 5000' >> sentinel.conf &&
+      echo 'sentinel parallel-syncs mymaster 1' >> sentinel.conf &&
+      echo 'sentinel failover-timeout mymaster 5000' >> sentinel.conf &&
+      cat sentinel.conf &&
+      redis-server sentinel.conf --sentinel &
+      redis-server --port 6380 --slaveof redis-master.mylab.local 6379 --maxmemory 200mb --maxmemory-policy allkeys-lru"
+    volumes:
+      - "redis-bitnami-data:/bitnami/redis/data"
+      - "redis-data:/data"
+
+#  redis-slave-2:
+#    hostname: redis-slave-2.mylab.local
+#    container_name: redis-slave-2
+#    image: redis:7.0.5
+#    command: >
+#      bash -c "echo 'port 26379' > sentinel.conf &&
+#      echo 'dir /tmp' >> sentinel.conf &&
+#      echo 'sentinel resolve-hostnames yes' >> sentinel.conf &&
+#      echo 'sentinel monitor mymaster redis-master.mylab.local 6379 2' >> sentinel.conf &&
+#      echo 'sentinel down-after-milliseconds mymaster 5000' >> sentinel.conf &&
+#      echo 'sentinel parallel-syncs mymaster 1' >> sentinel.conf &&
+#      echo 'sentinel failover-timeout mymaster 5000' >> sentinel.conf &&
+#      cat sentinel.conf &&
+#      redis-server sentinel.conf --sentinel &
+#      redis-server --port 6381 --slaveof redis-master.mylab.local 6379 --maxmemory 10mb --maxmemory-policy noeviction"
+#    volumes:
+#      - "redis-bitnami-data:/bitnami/redis/data"
+#      - "redis-data:/data"
+
+  telegraf:
+    image: telegraf:alpine
+    container_name: telegraf
+    restart: always
+    volumes:
+      - ./config/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    ports:
+      - '8125:8125/udp'
+    depends_on:
+      - influxdb
+      - backend
+
+  influxdb:
+    image: influxdb:1.8-alpine
+    container_name: influxdb
+    restart: always
+    environment:
+      - INFLUXDB_DB=telegraf
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=qwerty123qwerty123
+      - INFLUXDB_ADMIN_ENABLED=true
+      - INFLUXDB_HTTP_AUTH_ENABLED=true
+      - INFLUXDB_USER=telegraf
+      - INFLUXDB_USER_PASSWORD=qwerty123qwerty123
+    ports:
+      - '8086:8086'
+
+  grafana:
+    image: grafana/grafana-oss
+    container_name: grafana-server
+    restart: always
+    volumes:
+      - ./config/grafana/provisioning/:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,natel-discrete-panel
+    ports:
+      - '3000:3000'
+    depends_on:
+      - influxdb
+      - telegraf
+
+
+volumes:
+  redis-data:
+  redis-bitnami-data:
+  grafana-storage:

@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:mariadb://mariadb:3306/redis_demo
+    username: root
+    password: root_pass
+    driver-class-name: org.mariadb.jdbc.Driver
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus
+  metrics:
+    tags:
+      application: redis-demo
+  endpoint:
+    prometheus:
+      enabled: true
